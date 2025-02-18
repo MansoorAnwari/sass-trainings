@@ -1,0 +1,16 @@
+@use "variables" as *;
+
+@function get-color($key) {
+  @if map-has-key($theme-colors, $key) {
+    @return map-get($theme-colors, $key);
+  } @else {
+    @error "Color '#{$key}' is not defined!";
+  }
+}
+
+@function px-to-rem($size) {
+  @if $size == 0 {
+    @error "Font size cannot be zero!";
+  }
+  @return #{$size / 16}rem;
+}
