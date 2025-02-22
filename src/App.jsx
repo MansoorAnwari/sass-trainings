@@ -5,7 +5,7 @@ import Home from "./pages/Home";
 function App() {
     return (
         <TodoProvider>
-            <Router>
+            <Router basename="/TodoList">
                 <Routes>
                     <Route path="/" element={<Home />} />
                 </Routes>
