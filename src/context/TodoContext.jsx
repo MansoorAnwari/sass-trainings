@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { getTodos, addTodo, deleteTodo, updateTodo } from "../api/index.js";
+import { getTodos, deleteTodo } from "../api/index.js";
+import axios from "axios";
 
 const TodoContext = createContext(undefined);
 
-// eslint-disable-next-line react/prop-types
 export const TodoProvider = ({ children }) => {
     const [todos, setTodos] = useState([]);
 
@@ -16,16 +16,27 @@ export const TodoProvider = ({ children }) => {
             const data = await getTodos();
             setTodos(data);
         } catch (error) {
-            console.error("Error fetching todos:", error);
+            // خطا در دریافت تسک‌ها
         }
     };
 
     const handleAddTodo = async (task) => {
         try {
-            const newTodo = await addTodo(task);
+            const response = await axios.post("https://todo-api-livid.vercel.app/api/todos", {
+                title: task.title,
+            });
+            const newTodoFromAPI = response.data;
+
+            const newTodo = {
+                ...newTodoFromAPI,
+                description: task.description,
+                status: task.status,
+            };
+
             setTodos((prevTodos) => [...prevTodos, newTodo]);
+            return newTodo;
         } catch (error) {
-            console.error("Error adding todo:", error);
+            throw error;
         }
     };
 
@@ -34,18 +45,22 @@ export const TodoProvider = ({ children }) => {
             await deleteTodo(id);
             setTodos((prevTodos) => prevTodos.filter((todo) => todo._id !== id));
         } catch (error) {
-            console.error("Error deleting todo:", error);
+            // خطا در حذف تسک
         }
     };
 
-    const handleUpdateTodo = async (id, updatedTask) => {
+    const handleUpdateTodo = async (id, updatedData) => {
         try {
-            const updatedTodo = await updateTodo(id, updatedTask);
+            const response = await axios.put(`https://todo-api-livid.vercel.app/api/todos/${id}`, updatedData);
+            const updatedTodo = response.data;
+
             setTodos((prevTodos) =>
-                prevTodos.map((todo) => (todo._id === id ? updatedTodo : todo))
+                prevTodos.map((todo) => (todo._id === id ? { ...todo, ...updatedTodo } : todo))
             );
+
+            return updatedTodo;
         } catch (error) {
-            console.error("Error updating todo:", error);
+            throw error;
         }
     };
 
@@ -56,5 +71,4 @@ export const TodoProvider = ({ children }) => {
     );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useTodo = () => useContext(TodoContext);

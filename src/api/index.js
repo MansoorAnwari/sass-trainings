@@ -9,8 +9,8 @@ export const getTodos = async () => {
 };
 
 // اضافه کردن تسک جدید
-export const addTodo = async (title) => {
-    const response = await axios.post(API_URL, { title });
+export const addTodo = async (newTask) => {
+    const response = await axios.post(API_URL, newTask);
     return response.data;
 };
 

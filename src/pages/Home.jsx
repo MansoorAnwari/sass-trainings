@@ -1,71 +1,82 @@
-import  { useState, useEffect } from "react";
-import { getTodos, addTodo, deleteTodo, updateTodo } from "../api";
+import AddTaskDialog from "../components/AddTaskDialog.jsx";
+import TodoItem from "../components/TodoItem.jsx";
+import { useTodo } from "../context/TodoContext.jsx";
+import { useState } from "react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
-const TodoList = () => {
-    const [todos, setTodos] = useState([]);
-    const [newTodo, setNewTodo] = useState("");
+const Home = () => {
+    const { todos, handleAddTodo, handleUpdateTodo } = useTodo();
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-        fetchTodos();
-    }, []);
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor)
+    );
 
-    const fetchTodos = async () => {
-        const data = await getTodos();
-        setTodos(data);
+    const handleAddTask = async (newTask) => {
+        setIsLoading(true);
+        try {
+            await handleAddTodo(newTask);
+        } catch (error) {
+            console.error("خطا در افزودن تسک:", error);
+        } finally {
+            setIsLoading(false);
+            setIsDialogOpen(false);
+        }
     };
 
-    const handleAdd = async () => {
-        if (newTodo.trim() === "") return;
-        const todo = await addTodo(newTodo);
-        setTodos([...todos, todo]);
-        setNewTodo("");
-    };
+    const onDragEnd = (event) => {
+        const { active, over } = event;
 
-    const handleDelete = async (id) => {
-        await deleteTodo(id);
-        setTodos(todos.filter((todo) => todo._id !== id));
-    };
+        if (active.id !== over.id) {
+            const oldIndex = todos.findIndex((todo) => todo._id === active.id);
+            const newIndex = todos.findIndex((todo) => todo._id === over.id);
+            const newTodos = arrayMove(todos, oldIndex, newIndex);
 
-    const handleEdit = async (id) => {
-        const updatedTitle = prompt("ویرایش کار:", todos.find(todo => todo._id === id).title);
-        if (updatedTitle) {
-            const updatedTodo = await updateTodo(id, updatedTitle);
-            setTodos(todos.map(todo => (todo._id === id ? updatedTodo : todo)));
+            handleUpdateTodo(active.id, { status: newTodos[newIndex].status });
         }
     };
 
     return (
-        <div className="todo-container">
-            <h2 className="todo-title">لیست کارها</h2>
-            <div>
-                <input
-                    type="text"
-                    className="todo-input"
-                    placeholder="تسک جدید..."
-                    value={newTodo}
-                    onChange={(e) => setNewTodo(e.target.value)}
-                />
-                <button className="todo-button" onClick={handleAdd}>
-                    افزودن
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+            modifiers={[restrictToVerticalAxis]}
+        >
+            <div className="todo-container">
+                <h2 className="todo-title">لیست کارها</h2>
+                <button className="todo-button" onClick={() => setIsDialogOpen(true)}>
+                    افزودن تسک
                 </button>
-            </div>
-            <ul className="todo-list">
-                {todos.map((todo) => (
-                    <li key={todo._id} className="todo-item">
-                        <span className="todo-text">{todo.title}</span>
-                        <div className="todo-actions">
-                            <button className="todo-edit" onClick={() => handleEdit(todo._id)}>
-                                ویرایش
-                            </button>
-                            <button className="todo-delete" onClick={() => handleDelete(todo._id)}>
-                                حذف
-                            </button>
+
+                <AddTaskDialog
+                    isOpen={isDialogOpen}
+                    onClose={() => setIsDialogOpen(false)}
+                    onAdd={handleAddTask}
+                    isLoading={isLoading}
+                />
+
+                <div className="columns">
+                    {["To Do", "In Progress", "Done"].map((status) => (
+                        <div key={status} className="column">
+                            <h3>{status}</h3>
+                            <SortableContext items={todos.filter((todo) => todo.status === status)} strategy={verticalListSortingStrategy}>
+                                {todos
+                                    .filter((todo) => todo.status === status)
+                                    .map((todo) => (
+                                        <TodoItem key={todo._id} todo={todo} />
+                                    ))}
+                            </SortableContext>
                         </div>
-                    </li>
-                ))}
-            </ul>
-        </div>
+                    ))}
+                </div>
+            </div>
+        </DndContext>
     );
 };
 
-export default TodoList;
+export default Home;
